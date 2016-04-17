@@ -1,0 +1,4 @@
+# picture               shutter speed (seconds)
+ZZ0T5469_unwarped.ppm   0.024096
+ZZ0T5470_unwarped.ppm   0.00390625
+ZZ0T5471_unwarped.ppm   0.16129
