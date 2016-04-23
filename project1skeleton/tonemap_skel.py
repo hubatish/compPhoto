@@ -3,11 +3,13 @@
 Tonemap an HDR input image using a global method or local method.
 """
 
+from __future__ import print_function
+
 import argparse
 import sys
 
 import numpy as np
-#import scipy.misc
+import scipy.misc
 
 import Imath
 import OpenEXR
@@ -58,13 +60,13 @@ def sqrt_tonemap(image):
 
 def bilateral_tonemap(image):
     """Tonemap image (HDR) using Durand 2002"""
-    # compute intensity
-    np.mean(image,axis=2)
     tests(image)
-    # ENTER CODE HERE
+    
+    # compute intensity
+    Is = np.mean(image,axis=2)
 
     # compute log intensity
-    # ENTER CODE HERE
+    LIs = np.log(Is)
 
     # compute bilateral filter
     # ENTER CODE HERE
@@ -92,14 +94,20 @@ def bilateral_tonemap(image):
 
 def printArray(a):
     for p in a:
-        print str(p[0]) + "," + str(p[1]) + "," + str(p[2])    
+        for v in p:
+            print(str(v)+",",end='')
+        print()
 
 def tests(image):
-    a = image[:5]
-    printArray(a)
+    #print("image size: "+str(image.size))
+    print("image dimensions: "+str(image.shape))
+    a = image[:5,:5]
+    print("image dimensions: "+str(a.shape))
+    #printArray(a)
     #a = [[1,50,200],[240,240,10],[60,120,120]]
-    np.mean(image,axis=2)
-    printArray()
+    a2 = np.mean(a,axis=2)
+    a3 = np.log(a2)
+    printArray(a3)
 
 if __name__ == "__main__":
     def check_method(s):
@@ -125,4 +133,4 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    #scipy.misc.imsave(args.output_path, args.method(loadexr(args.input_path)))
+    scipy.misc.imsave(args.output_path, args.method(loadexr(args.input_path)))
