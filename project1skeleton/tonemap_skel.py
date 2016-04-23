@@ -30,14 +30,57 @@ def loadexr(filename):
 
     return image
 
+class ZPoint(object):
+    def __init__(self,x,y):
+        self.x = x
+        self.y = y
 
-def bilateral_filter(image, spatialsigma, rangesigma):
+#Takes the whole image, position on that image, width around that pos
+#Returns array to apply on those points
+def bilateral_filter(image, pos, spatialSigma):
     """Compute bilateral filter of image"""
-    # ENTER CODE HERE
-    # ENTER CODE HERE
-    # ENTER CODE HERE
     # see http://en.wikipedia.org/wiki/Bilateral_filter
-    pass
+    w = np.floor(spatialSigma/2.0) # Width to left
+    
+    imageW = image.shape[0]
+    imageH = image.shape[1]
+    print("sizeL: "+str(w))
+    filter = np.zeros((spatialSigma,spatialSigma))
+
+    #Takes numerator
+    #spits out gaussian value for that point
+    def oneGauss(x,y):
+        gaussSigma = 1.0
+        gS2 = gaussSigma*gaussSigma
+        n2 = x*x+y*y
+        v = 1.0/(2.0*gS2*np.pi)*np.exp(-n2/(2.0*gS2))
+        return v
+
+    xs = xrange(int(-w),int(w+1))
+    ys = xrange(int(-w),int(w+1))
+    print(xs)
+    print(ys)
+
+
+    for x in xs:
+        for y in ys:
+            destV = 0.0
+            #if(x>0 && x<imageW)
+            destV = oneGauss(x,y)
+            print("got v: "+str(destV) + " at "+str(x),',',y)
+            filter[x+w,y+w] = destV
+
+    #ensure filter totals to 1
+    sumFr = 0.0
+    for x in xs:
+        for y in ys:
+            sumFr += filter[x+w,y+w]
+
+    print("the sum fraction is: "+str(sumFr))
+    
+    #filter = gaussian_filter(a,rangesigma)
+    
+    return filter
 
 
 def log_tonemap(image):
@@ -60,8 +103,6 @@ def sqrt_tonemap(image):
 
 def bilateral_tonemap(image):
     """Tonemap image (HDR) using Durand 2002"""
-    tests(image)
-    
     # compute intensity
     Is = np.mean(image,axis=2)
 
@@ -103,13 +144,16 @@ def tests(image):
     print("image dimensions: "+str(image.shape))
     a = image[:5,:5]
     print("image dimensions: "+str(a.shape))
+
     #printArray(a)
-    #a = [[1,50,200],[240,240,10],[60,120,120]]
-    a2 = np.mean(a,axis=2)
-    a3 = np.log(a2)
-    printArray(a3)
+    a = bilateral_tonemap(a)
+    printArray(a)
+    filter = bilateral_filter(a,ZPoint(2,2),3)
+    print("filter")
+    printArray(filter)
 
 if __name__ == "__main__":
+    
     def check_method(s):
         if s == 'durand02':
             return bilateral_tonemap
@@ -128,9 +172,13 @@ if __name__ == "__main__":
     parser.add_argument('input_path', type=str)
     parser.add_argument('--method', type=check_method, default=bilateral_tonemap,
                         help="Must be one of, 'durand02', 'log', 'divide', or 'sqrt'")
+
     if len(sys.argv) == 1:
         parser.print_help()
 
     args = parser.parse_args()
 
-    scipy.misc.imsave(args.output_path, args.method(loadexr(args.input_path)))
+    tests(loadexr(args.input_path))
+    #scipy.misc.imsave(args.output_path, args.method(loadexr(args.input_path)))
+
+
