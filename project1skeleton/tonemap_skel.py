@@ -7,7 +7,7 @@ import argparse
 import sys
 
 import numpy as np
-import scipy.misc
+#import scipy.misc
 
 import Imath
 import OpenEXR
@@ -59,6 +59,8 @@ def sqrt_tonemap(image):
 def bilateral_tonemap(image):
     """Tonemap image (HDR) using Durand 2002"""
     # compute intensity
+    np.mean(image,axis=2)
+    tests(image)
     # ENTER CODE HERE
 
     # compute log intensity
@@ -86,8 +88,18 @@ def bilateral_tonemap(image):
     # ENTER CODE HERE
 
     # convert to LDR
-    return tonemapped.astype(np.uint8)
+    return image#tonemapped.astype(np.uint8)
 
+def printArray(a):
+    for p in a:
+        print str(p[0]) + "," + str(p[1]) + "," + str(p[2])    
+
+def tests(image):
+    a = image[:5]
+    printArray(a)
+    #a = [[1,50,200],[240,240,10],[60,120,120]]
+    np.mean(image,axis=2)
+    printArray()
 
 if __name__ == "__main__":
     def check_method(s):
@@ -100,7 +112,7 @@ if __name__ == "__main__":
         elif s == 'sqrt':
             return sqrt_tonemap
         else:
-            raise argparse.ArgumentTypeError('Unknown method')
+            raise argparse.ArgumentTypeError('Unknown method: '+s)
 
     description = '\n\n'.join(__doc__.split('\n\n'))
     parser = argparse.ArgumentParser(description=description)
@@ -113,4 +125,4 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    scipy.misc.imsave(args.output_path, args.method(loadexr(args.input_path)))
+    #scipy.misc.imsave(args.output_path, args.method(loadexr(args.input_path)))
