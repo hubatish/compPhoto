@@ -31,7 +31,7 @@ zmid = (zmax + zmin) / 2
 weights = np.array([z - zmin if z <= zmid else zmax - z for z in xrange(ncolors)])
 
 
-def compute_response(imagelist, exposuretimes, channel, npixels, smoothweight):
+def compute_response(imagelist, exposuretimes, channel, npixels, smoothweight,pixelLocs):
     """Compute and return inverse response function and irradiance values
     
     Uses the method of Debevec and Malik, "Recovering High Dynamic Range Radiance Maps from Photographs"
@@ -41,6 +41,8 @@ def compute_response(imagelist, exposuretimes, channel, npixels, smoothweight):
     assert len(imagelist) == len(exposuretimes)
     nimages = len(imagelist)
 
+    exposuretimes = np.log(exposuretimes)
+
     # initialize matrix and array
     A = scipy.sparse.lil_matrix((nimages * npixels + ncolors - 1, ncolors + npixels))
     b = np.zeros((nimages * npixels + ncolors - 1,))
@@ -49,59 +51,78 @@ def compute_response(imagelist, exposuretimes, channel, npixels, smoothweight):
     k = 0
     for i in xrange(0,nimages):
         for j in xrange(0,npixels):
-            pixel = weights[imagelist[i][pixelLocs[j][0],pixelLocs[j][1],channel]]
-            A[k,pixel] = pixel
-            A[k,ncolors+i] = -pixel
-            b[k] = pixel*exposuretimes[i]
+            pixel = imagelist[i][pixelLocs[j][0],pixelLocs[j][1],channel]
+            wij = weights[pixel]
+            A[k,pixel] = wij
+            A[k,ncolors+i] = -wij
+            b[k] = -wij*exposuretimes[i]
             k += 1
 
     # add data term
+    #????
     
+    # add constraint g(z_mid) = 0
+    A[k,129] = 0
+    k += 1
 
     # add smoothness constraint
-    # ENTER CODE HERE
-    # ENTER CODE HERE
-    # ENTER CODE HERE
-
-    # add constraint g(z_mid) = 0
-    # ENTER CODE HERE
-    # ENTER CODE HERE
-    # ENTER CODE HERE
-
+    for i in xrange(1,ncolors-1):
+        wI = smoothweight * weights[i]
+        A[k,i] = wI
+        A[k,i+1] = -2.0*wI
+        A[k,i+2] = wI
+    
     # solve least square system
     result = scipy.sparse.linalg.lsqr(A.tocsr(), b)[0]
 
     return result[:ncolors], result[ncolors:]
 
 
-def combine_exposures(imagelist, exposuretimes, npixels, smoothweight, pixelLocs):
+def combine_exposures(imagelist, exposuretimes, npixels, smoothweight):
     """Combine a series of expsures into a single HDR photo"""
 
+    #select random pixels
+    imageW = imagelist[0].shape[0]
+    imageH = imagelist[0].shape[1]
+    print("image w: ",imageW,"h: ",imageH)
+    pixelLocs = []
+    for i in xrange(0,args.npixels):
+        pixelLocs.append((np.floor(random.random()*imageW),np.floor(random.random()*imageH)))
+        #print("got rand value ", pixelLocs[i])
+    
     # check parameters
     assert len(imagelist) == len(exposuretimes)
     nimages = len(imagelist)
 
     final = np.zeros((imagelist[0].shape), dtype=np.float32)
-    weightsum = np.zeros((imagelist[0].shape), dtype=np.float32)
+    #weightsum = np.zeros((imagelist[0].shape), dtype=np.float32)
 
     # do each color channel separately
     for c in xrange(3):
         # compute inverse response function
-        responsefunc, radiance = compute_response(imagelist, exposuretimes, c, npixels, smoothweight)
+        responsefunc, radiance = compute_response(imagelist, exposuretimes, c, npixels, smoothweight,pixelLocs)
 
         # optionally plot the response function (helpful for debugging)
-        #import matplotlib.pyplot as plt
-        #plt.plot(np.arange(len(responsefunc)), responsefunc)
-        #plt.show()
+        import matplotlib.pyplot as plt
+        plt.plot(np.arange(len(responsefunc)), responsefunc)
+        plt.show()
         
         # combine exposures
-        for i in xrange(nimages):
-            # ENTER CODE HERE
-            # ENTER CODE HERE
-            # ENTER CODE HERE
-            pass
-
-    final /= weightsum
+        '''
+        for y in xrange(imageH-1):
+            for x in xrange(imageW-1):
+                eSum = 0.0
+                wSum = 0.0
+                for j in xrange(nimages):
+                    #final[x,y,c] = 
+                    pixel = imagelist[j][x,y,c]
+                    w = weights[pixel]
+                    eSum += w*(responsefunc[pixel]-np.log(exposuretimes[j]))
+                    wSum += w
+                #print("sum for this row is :",eSum)
+                final[x,y,c] = eSum/wSum
+        '''
+    #final /= weightsum
     return np.exp(final)
 
 
@@ -136,13 +157,5 @@ if __name__ == "__main__":
     
     exposuretimes = imageinfo['f1']
 
-    #select random pixels
-    imageW = imagelist[0].shape[0]
-    imageH = imagelist[0].shape[1]
-    pixelLocs = []
-    for i in xrange(0,args.npixels):
-        pixelLocs.append((np.floor(random.random()*imageW),np.floor(random.random()*imageH)))
-        #print("got rand value ", pixelLocs[i])
-
-    hdr = combine_exposures(imagelist, exposuretimes, args.npixels, args.smoothweight, pixelLocs)
+    hdr = combine_exposures(imagelist, exposuretimes, args.npixels, args.smoothweight)
     writeexr(args.output_path, hdr)
