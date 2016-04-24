@@ -36,7 +36,8 @@ class ZPoint(object):
         self.y = y
 
 #Takes the whole image, position on that image, width around that pos
-#Returns array to apply on those points
+#Main step: create an array to apply on those points
+#Returns new value of that image point
 def bilateral_filter(image, pos, spatialSigma):
     """Compute bilateral filter of image"""
     # see http://en.wikipedia.org/wiki/Bilateral_filter
@@ -44,31 +45,36 @@ def bilateral_filter(image, pos, spatialSigma):
     
     imageW = image.shape[0]
     imageH = image.shape[1]
-    print("sizeL: "+str(w))
     filter = np.zeros((spatialSigma,spatialSigma))
 
     #Takes numerator
     #spits out gaussian value for that point
-    def oneGauss(x,y):
-        gaussSigma = 1.0
-        gS2 = gaussSigma*gaussSigma
+    gaussSigma = 1.0
+    gS2 = gaussSigma*gaussSigma
+    def twoDGauss(x,y):
         n2 = x*x+y*y
         v = 1.0/(2.0*gS2*np.pi)*np.exp(-n2/(2.0*gS2))
         return v
 
+    def oneGauss(num):
+        n2 = num*num
+        v = 1.0/(gaussSigma*np.sqrt(2.0*np.pi))*np.exp(-n2/(2.0*gS2))
+        return v
+
     xs = xrange(int(-w),int(w+1))
     ys = xrange(int(-w),int(w+1))
-    print(xs)
-    print(ys)
 
+    centerIntensity = image[pos.x,pos.y]
 
     for x in xs:
         for y in ys:
             destV = 0.0
             #if(x>0 && x<imageW)
-            destV = oneGauss(x,y)
-            print("got v: "+str(destV) + " at "+str(x),',',y)
-            filter[x+w,y+w] = destV
+            destV = oneGauss(image[pos.x+x,pos.y+y]-centerIntensity)
+            #print("got v: "+str(destV)+" from "+str(image[pos.x+x,pos.y+y]))
+            xyG = twoDGauss(x,y)
+            #print("got v: "+str(xyG) + " at "+str(x),',',y)
+            filter[x+w,y+w] = xyG*destV
 
     #ensure filter totals to 1
     sumFr = 0.0
@@ -76,12 +82,22 @@ def bilateral_filter(image, pos, spatialSigma):
         for y in ys:
             sumFr += filter[x+w,y+w]
 
-    print("the sum fraction is: "+str(sumFr))
+    #print("the sum fraction is: "+str(sumFr))
+
+    for x in xs:
+        for y in ys:
+            filter[x+w,y+w] /= sumFr
     
+    sumV = 0.0
+    for x in xs:
+        for y in ys:
+            sumV += filter[x+w,y+w]*image[pos.x+x,pos.y+y]
+
+    #this no work
     #filter = gaussian_filter(a,rangesigma)
     
-    return filter
-
+    #print("value before: ",image[pos.x,pos.y]," after: ",sumV)
+    return sumV
 
 def log_tonemap(image):
     image[image == 0] = np.min(image) / 16.
@@ -103,6 +119,8 @@ def sqrt_tonemap(image):
 
 def bilateral_tonemap(image):
     """Tonemap image (HDR) using Durand 2002"""
+    #image = image[:400,:200]
+
     # compute intensity
     Is = np.mean(image,axis=2)
 
@@ -110,28 +128,42 @@ def bilateral_tonemap(image):
     LIs = np.log(Is)
 
     # compute bilateral filter
-    # ENTER CODE HERE
+    
+    filtered = np.zeros(LIs.shape)
+    for x in xrange(1,len(LIs)-1):
+        for y in xrange(1,len(LIs[0])-1):
+            filtered[x,y] = bilateral_filter(LIs,ZPoint(x,y),3)
+            #print("new value "+str(filtered[x,y]))
+
 
     # compute detail layer
-    # ENTER CODE HERE
+    detail = np.subtract(LIs,filtered)
 
     # apply an offset and scale to the base
-    # ENTER CODE HERE
+    maxF = np.amax(filtered)
+    minF = np.amin(filtered)
+    dR = 4.0
+    s = dR/(maxF-minF)
+    scaled = (filtered - maxF)*s
 
     # reconstruct the log intensity
-    # ENTER CODE HERE
-
+    newIs = np.exp(scaled+detail)
+    
     # put back colors
-    # ENTER CODE HERE
+    #print(newIs[:,:,np.newaxis].shape)
+    colors = np.multiply(newIs[:,:,np.newaxis],np.divide(image,Is[:,:,np.newaxis]))
 
     # gamma compress
-    # ENTER CODE HERE
+    gammas = np.power(colors,0.25)
 
     # rescale to 0..255 range
-    # ENTER CODE HERE
+    lastA = gammas
+    minT = np.amin(lastA)
+    maxT = np.amax(lastA)
+    in255 = (lastA-minT)/(maxT-minT)*255.0
 
     # convert to LDR
-    return image#tonemapped.astype(np.uint8)
+    return in255.astype(np.uint8)#tonemapped.astype(np.uint8)
 
 def printArray(a):
     for p in a:
@@ -148,9 +180,6 @@ def tests(image):
     #printArray(a)
     a = bilateral_tonemap(a)
     printArray(a)
-    filter = bilateral_filter(a,ZPoint(2,2),3)
-    print("filter")
-    printArray(filter)
 
 if __name__ == "__main__":
     
@@ -178,7 +207,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    tests(loadexr(args.input_path))
-    #scipy.misc.imsave(args.output_path, args.method(loadexr(args.input_path)))
+    #tests(loadexr(args.input_path))
+    scipy.misc.imsave(args.output_path, args.method(loadexr(args.input_path)))
 
 
