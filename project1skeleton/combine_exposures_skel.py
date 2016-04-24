@@ -5,6 +5,8 @@ using the inverse repsonse function to compute the irradiance of each image,
 and perform a weighted average to merge them.
 """
 
+from __future__ import print_function
+
 import argparse
 import os
 import sys
@@ -13,6 +15,7 @@ import numpy as np
 import scipy.ndimage
 import scipy.sparse
 import scipy.sparse.linalg
+import random
 
 import Imath
 import OpenEXR
@@ -43,11 +46,17 @@ def compute_response(imagelist, exposuretimes, channel, npixels, smoothweight):
     b = np.zeros((nimages * npixels + ncolors - 1,))
 
     # construct A and b
+    k = 0
+    for i in xrange(0,nimages):
+        for j in xrange(0,npixels):
+            pixel = weights[imagelist[i][pixelLocs[j][0],pixelLocs[j][1],channel]]
+            A[k,pixel] = pixel
+            A[k,ncolors+i] = -pixel
+            b[k] = pixel*exposuretimes[i]
+            k += 1
 
     # add data term
-    # ENTER CODE HERE
-    # ENTER CODE HERE
-    # ENTER CODE HERE
+    
 
     # add smoothness constraint
     # ENTER CODE HERE
@@ -65,7 +74,7 @@ def compute_response(imagelist, exposuretimes, channel, npixels, smoothweight):
     return result[:ncolors], result[ncolors:]
 
 
-def combine_exposures(imagelist, exposuretimes, npixels, smoothweight):
+def combine_exposures(imagelist, exposuretimes, npixels, smoothweight, pixelLocs):
     """Combine a series of expsures into a single HDR photo"""
 
     # check parameters
@@ -123,7 +132,17 @@ if __name__ == "__main__":
     imageinfo = np.genfromtxt(args.imagelist_path, dtype=None)
 
     imagelist = [scipy.ndimage.imread(os.path.join(os.path.dirname(args.imagelist_path), x)) for x in imageinfo['f0']]
+    print("out size ",len(imagelist),"in shap ",imagelist[0].shape)
+    
     exposuretimes = imageinfo['f1']
 
-    hdr = combine_exposures(imagelist, exposuretimes, args.npixels, args.smoothweight)
+    #select random pixels
+    imageW = imagelist[0].shape[0]
+    imageH = imagelist[0].shape[1]
+    pixelLocs = []
+    for i in xrange(0,args.npixels):
+        pixelLocs.append((np.floor(random.random()*imageW),np.floor(random.random()*imageH)))
+        #print("got rand value ", pixelLocs[i])
+
+    hdr = combine_exposures(imagelist, exposuretimes, args.npixels, args.smoothweight, pixelLocs)
     writeexr(args.output_path, hdr)

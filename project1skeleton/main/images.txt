@@ -1,0 +1,4 @@
+# picture               shutter speed (seconds)
+ZZ0T5330_unwarped.JPG   0.125
+ZZ0T5331_unwarped.JPG   0.015625
+ZZ0T5332_unwarped.JPG   1.0
