@@ -36,6 +36,7 @@ def compute_response(imagelist, exposuretimes, channel, npixels, smoothweight,pi
     
     Uses the method of Debevec and Malik, "Recovering High Dynamic Range Radiance Maps from Photographs"
     """
+    print("Computing response for channel ",channel," with ",npixels," pixels..")
 
     # check parameters
     assert len(imagelist) == len(exposuretimes)
@@ -70,7 +71,7 @@ def compute_response(imagelist, exposuretimes, channel, npixels, smoothweight,pi
         A[k,i+1] = smoothweight*weights[i+1]
         k += 1
     
-    print("k: ",k)    
+    #print("k: ",k)    
 
     # add constraint g(z_mid) = 0
     A[k,128] = 0
@@ -88,18 +89,24 @@ def combine_exposures(imagelist, exposuretimes, npixels, smoothweight):
     #select random pixels
     imageW = imagelist[0].shape[0]
     imageH = imagelist[0].shape[1]
-    print("image w: ",imageW,"h: ",imageH)
     pixelLocs = []
-    for i in xrange(0,args.npixels):
-        pixelLocs.append((np.floor(random.random()*imageW),np.floor(random.random()*imageH)))
-        #print("got rand value ", pixelLocs[i])
+    randTuples = []
+    #ensure the random pixels aren't too bunched up
+    irr =  0.2 #const allows for some irregularity
+    hstep = int(irr*float(imageW)/(float(npixels)/float(imageH)))+1
+    vstep = int(irr*float(imageH)/(float(npixels)))+1
+    print("image w: ",imageW,"h: ",imageH,"step ",hstep)
+    for x in xrange(0,imageW,hstep):
+        for y in xrange(0,imageH,vstep):
+            randTuples.append((x,y))
+    random.shuffle(randTuples)
+    pixelLocs = randTuples[npixels:]
     
     # check parameters
     assert len(imagelist) == len(exposuretimes)
     nimages = len(imagelist)
 
     final = np.zeros((imagelist[0].shape), dtype=np.float32)
-    #weightsum = np.zeros((imagelist[0].shape), dtype=np.float32)
 
     # do each color channel separately
     for c in xrange(3):
@@ -107,7 +114,7 @@ def combine_exposures(imagelist, exposuretimes, npixels, smoothweight):
         responsefunc, radiance = compute_response(imagelist, exposuretimes, c, npixels, smoothweight,pixelLocs)
 
         # optionally plot the response function (helpful for debugging)
-        import matplotlib.pyplot as plt
+        #import matplotlib.pyplot as plt
         #plt.plot(np.arange(len(responsefunc)), responsefunc)
         #plt.show()
         
@@ -126,7 +133,6 @@ def combine_exposures(imagelist, exposuretimes, npixels, smoothweight):
                 #print("sum for this row is :",eSum)
                 final[x,y,c] = eSum/wSum
         
-    #final /= weightsum
     return np.exp(final)
 
 
@@ -163,3 +169,4 @@ if __name__ == "__main__":
 
     hdr = combine_exposures(imagelist, exposuretimes, args.npixels, args.smoothweight)
     writeexr(args.output_path, hdr)
+
