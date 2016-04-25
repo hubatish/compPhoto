@@ -53,25 +53,29 @@ def compute_response(imagelist, exposuretimes, channel, npixels, smoothweight,pi
         for j in xrange(0,npixels):
             pixel = imagelist[i][pixelLocs[j][0],pixelLocs[j][1],channel]
             wij = weights[pixel]
-            A[k,pixel] = wij
-            A[k,ncolors+i] = -wij
+            #print("p: ",pixel,"w: ",wij)
+            A[k,pixel] = -wij
+            A[k,ncolors+j] = wij
             b[k] = -wij*exposuretimes[i]
             k += 1
 
     # add data term
     #????
-    
-    # add constraint g(z_mid) = 0
-    A[k,129] = 0
-    k += 1
 
     # add smoothness constraint
     for i in xrange(1,ncolors-1):
-        wI = smoothweight * weights[i]
-        A[k,i] = wI
-        A[k,i+1] = -2.0*wI
-        A[k,i+2] = wI
+        #wI = smoothweight * weights[i]
+        A[k,i-1] = smoothweight*weights[i-1]
+        A[k,i] = -2.0*smoothweight*weights[i]
+        A[k,i+1] = smoothweight*weights[i+1]
+        k += 1
     
+    print("k: ",k)    
+
+    # add constraint g(z_mid) = 0
+    A[k,128] = 0
+    k += 1
+
     # solve least square system
     result = scipy.sparse.linalg.lsqr(A.tocsr(), b)[0]
 
@@ -104,11 +108,11 @@ def combine_exposures(imagelist, exposuretimes, npixels, smoothweight):
 
         # optionally plot the response function (helpful for debugging)
         import matplotlib.pyplot as plt
-        plt.plot(np.arange(len(responsefunc)), responsefunc)
-        plt.show()
+        #plt.plot(np.arange(len(responsefunc)), responsefunc)
+        #plt.show()
         
         # combine exposures
-        '''
+        
         for y in xrange(imageH-1):
             for x in xrange(imageW-1):
                 eSum = 0.0
@@ -121,7 +125,7 @@ def combine_exposures(imagelist, exposuretimes, npixels, smoothweight):
                     wSum += w
                 #print("sum for this row is :",eSum)
                 final[x,y,c] = eSum/wSum
-        '''
+        
     #final /= weightsum
     return np.exp(final)
 
