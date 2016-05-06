@@ -2,6 +2,7 @@
 import sys
 import numpy as np
 import cv2
+from scipy import signal
 
 
 def remove_vertical_seam(image, seam):
@@ -16,6 +17,43 @@ def remove_vertical_seam(image, seam):
     returns: an n x (m - 1) image with the seam removed.
     """
     # TODO: CODE ME!
+    pass
+
+def applyConvolution(image,kernel):
+    """
+    Returns image with kernel applied to it by multiplying each number in kernel to corresponding grid location, then adding them all together
+    """
+    gradient = np.zeros(image.shape)
+    kWidth = np.floor(len(kernel) / 2).astype(int)
+    kHeight = np.floor(len(kernel[0])/2).astype(int)
+    #print 'kernel: w' , kWidth, 'h', kHeight
+    
+    #for each pixel in image
+    for i in range(kWidth,image.shape[0]-kWidth):
+        for j in range(kHeight,image.shape[1]-kHeight):
+            #add up each kernel square
+            sum = 0.0
+            for kI in range(0,len(kernel)):
+                for kJ in range(0,len(kernel[0])):
+                    sum += image[i-kWidth+kI][j-kHeight+kJ]*kernel[kI][kJ]
+            gradient[i][j] = sum
+            #print "sum for ",i,",",j,":",sum
+
+    #TODO, handle edges
+
+    print "finished making a gradient"
+    return gradient
+    
+def normalize2D(image):
+    """
+    Make all values of [X,Y] array between 0 and 1
+    """
+    IMax = np.amax(image)
+    IMin = np.amin(image)
+    Is = image - IMin
+    Is = np.divide(Is,float(IMax))
+    return Is
+    #print Is.shape , 'max ', IMax, ' min ', IMin
 
 def gradient_magnitude(image):
     """
@@ -23,23 +61,55 @@ def gradient_magnitude(image):
     The result is an n x m numpy array of floating point values,
     where n is the number of rows in the image and m is the number of columns.
     """
-    # TODO: First, convert the input image to a 32-bit floating point grayscale.
+    # First, convert the input image to a 32-bit floating point grayscale.
     # Be sure to scale it such that the intensity varies between 0 and 1.
+    Is = np.mean(image,axis=2,dtype=np.float64)
+    Is = normalize2D(Is)
     
-    
-    # TODO: Next, compute the graient in the x direction using the sobel operator with a kernel size of 5
-    
-    # TODO: and compute the graient in the y direction using the sobel operator with a kernel size of 5
-    
-    
-    # TODO: Finally, compute the l1 norm of the x and y gradients at each pixel value.
+    # Next, compute the graient in the x direction using the sobel operator with a kernel size of 5
+    sobelX = [[2.0,1.0,0.0,-1.0,-2.0],
+              [3.0,2.0,0.0,-2.0,-3.0],
+              [4.0,3.0,0,-3.0,-4.0],
+              [3.0,2.0,0.0,-2.0,-3.0],
+              [2.0,1.0,0.0,-1.0,-2.0]]
+    #gradientX = applyConvolution(Is,sobelX) #apparently there's a np.convolute2d - and it is so much faster!
+    gradientX = signal.convolve2d(Is,sobelX)
+    # Compute the graient in the y direction using the sobel operator with a kernel size of 5
+    gradientY = signal.convolve2d(Is,np.transpose(sobelX))
+    #gradientY = applyConvolution(Is,np.transpose(sobelX))    
+
+    # Finally, compute the l1 norm of the x and y gradients at each pixel value.
     # The l1 norm is the sum of their absolute values.
     # convert the final image from a double-precision floating point to single.
-    
+    gradientX = np.absolute(gradientX)
+    gradientY = np.absolute(gradientY)
+    energy = gradientX + gradientY
     
     # and return the result
     return energy
 
+bogusValue = -10 # we haven't done this part of image yet
+
+def get_min_energy_path(energy,M,i,j):
+    """
+    Return the minimum energy to get to this point.
+    Recursively compute this number if not available,
+    otherwise return cached value
+    """
+    if j<0 or j>=energy.shape[1]:
+        return float("inf") #out of bounds, don't use this! return infinity
+    if M[i][j]!=bogusValue:
+        return M[i][j] # we already solved this, return
+    if i==0:
+        M[i][j] = energy[i][j] #base case, reached left edge
+        return M[i][j]
+    
+    #actually recurse
+    minL = np.amin([get_min_energy_path(energy,M,i-1,j-1),
+                    get_min_energy_path(energy,M,i-1,j),
+                    get_min_energy_path(energy,M,i-1,j+1)])
+    M[i][j] = energy[i][j]+minL
+    return M[i][j]
 
 def compute_seam_costs(energy):
     """
@@ -51,14 +121,16 @@ def compute_seam_costs(energy):
     returns : an n x m image containing the cumulative minimum energy cost of all seams through each pixel.
     """
     # TODO: Create M, an n x m matrix with the first row equal to energy.
-    
+    M = np.zeros(energy.shape) +bogusValue
+     
     # TODO: Iterate over the rows, starting at row 1
-    
+    for i in range(1,n-1):
+        
         # TODO: Iterate over the column 1 to m - 1
         for j in range(1, m - 1):
             # TODO: Compute M(i, j) = e(i, j) + min( M(i-1, j-1), M(i-1, j), M(i-1, j+1)
             # Be sure to handle edge cases where j = 0 and j = m - 1
-
+            pass
     # return the result!
     return M
 
@@ -99,11 +171,12 @@ def resize(image, target_size):
     order = compute_ordering(output, target_size)
 
     for i, seam_type in enumerate(order):
-        print "Removing seam {} / {} ".format(i, len(order))
-        
+        #print "Removing seam {} / {} ".format(i, len(order))
+
         # TODO: check if order = 0, if so, transpose the image!
         
         # TODO: compute the energy using gradient_magnitude
+        energy = gradient_magnitude(image)
         
         # TODO: Compute M using compute_seam_costs
         
@@ -130,5 +203,6 @@ if __name__ == "__main__":
         exit(1)
 
     image = cv2.imread(in_fn)
-    resized = resize(image, (h,w))
+    resized = normalize2D(gradient_magnitude(image))*255.0
+    #resized = resize(image, (h,w))
     cv2.imwrite(out_fn, resized)
