@@ -9,6 +9,7 @@ import sys
 import numpy as np
 import cv2
 from scipy import signal
+import time
 
 
 def applyConvolution(image,kernel):
@@ -116,6 +117,8 @@ def compute_seam_costs(energy,M=None,rSeam=None):
     returns : an n x m image containing the cumulative minimum energy cost of all seams through each pixel.
     """
     # Create M, an n x m matrix with the first row equal to energy.
+    #M = None #uncomment to try slower version
+    #rSeam = None
     if(M==None):
         M = np.zeros(energy.shape) +bogusValue
     if(rSeam!=None):
@@ -267,6 +270,9 @@ if __name__ == "__main__":
         exit(1)
 
     image = cv2.imread(in_fn)
+    start = time.clock()
     #resized = normalize2D(gradient_magnitude(image))*255.0
     resized = resize(image, (h,w))
+    end = time.clock()
+    print "runtime: ",end-start
     cv2.imwrite(out_fn, resized)
