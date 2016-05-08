@@ -9,6 +9,7 @@ import sys
 import numpy as np
 import cv2
 from scipy import signal
+import time
 
 
 def applyConvolution(image,kernel):
@@ -133,6 +134,8 @@ def compute_seam_costs(energy,M=None,rSeam=None):
     returns : an n x m image containing the cumulative minimum energy cost of all seams through each pixel.
     """
     # Create M, an n x m matrix with the first row equal to energy.
+    #M = None #uncomment to try slower version
+    #rSeam = None
     if(M==None):
         M = np.zeros(energy.shape) +bogusValue
     if(rSeam!=None):
@@ -231,10 +234,14 @@ def remove_vertical_seam(image, seam):
     """
     seam = np.array(seam,dtype='int')
     print 'image size',image.shape,'seam size',seam.shape
-    m,n,derp = image.shape
+    mnshape = image.shape
+    m = mnshape[0]
+    n = mnshape[1]
     mask = np.ones((m,n),dtype='bool')
     mask[range(m),seam] = False
-    image = image[mask].reshape(m,n-1,derp) 
+    mnshape = list(mnshape)
+    mnshape[1] -= 1
+    image = image[mask].reshape(mnshape) 
     #print 'image size after deletion',image.shape
 
     #for i in range(0,len(seam)):
@@ -262,9 +269,13 @@ def resize(image, target_size):
         if(len(seams[seam_type])>=seamsPerCalc):
             M[seam_type],seams[seam_type] = recalculate_for_seams(M,seams[seam_type])
         
+<<<<<<< HEAD
         energy = gradient_magnitude(output)
         M[seam_type] = compute_seam_costs(energy,M[seam_type],seams[seam_type])
             
+=======
+        M[seam_type] = compute_seam_costs(energy,M[seam_type],seam[seam_type])
+>>>>>>> 3e33b49c4fc5675edbb9d978b8afbe6bcb69c583
         seam[seam_type] = minimal_seam(M[seam_type])
         output = remove_vertical_seam(output,seam[seam_type])
 
@@ -288,6 +299,9 @@ if __name__ == "__main__":
         exit(1)
 
     image = cv2.imread(in_fn)
+    start = time.clock()
     #resized = normalize2D(gradient_magnitude(image))*255.0
     resized = resize(image, (h,w))
+    end = time.clock()
+    print "runtime: ",end-start
     cv2.imwrite(out_fn, resized)
