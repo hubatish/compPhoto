@@ -5,20 +5,6 @@ import cv2
 from scipy import signal
 
 
-def remove_vertical_seam(image, seam):
-    """
-    Removes the given seam from the image.
-    
-    image : an n x m array (may have multiple channels)
-    seam : an n x 1 array of X-coordinates defining the seam pixels in top-down order.
-    
-    Thus, seam[0] means remove pixel (0, seam[0]) from the input image.
-    
-    returns: an n x (m - 1) image with the seam removed.
-    """
-    # TODO: CODE ME!
-    pass
-
 def applyConvolution(image,kernel):
     """
     Returns image with kernel applied to it by multiplying each number in kernel to corresponding grid location, then adding them all together
@@ -73,9 +59,9 @@ def gradient_magnitude(image):
               [3.0,2.0,0.0,-2.0,-3.0],
               [2.0,1.0,0.0,-1.0,-2.0]]
     #gradientX = applyConvolution(Is,sobelX) #apparently there's a np.convolute2d - and it is so much faster!
-    gradientX = signal.convolve2d(Is,sobelX)
+    gradientX = signal.convolve2d(Is,sobelX,mode='same')
     # Compute the graient in the y direction using the sobel operator with a kernel size of 5
-    gradientY = signal.convolve2d(Is,np.transpose(sobelX))
+    gradientY = signal.convolve2d(Is,np.transpose(sobelX),mode='same')
     #gradientY = applyConvolution(Is,np.transpose(sobelX))    
 
     # Finally, compute the l1 norm of the x and y gradients at each pixel value.
@@ -175,7 +161,7 @@ def minimal_seam(M):
                 pos = pos-1
         elif(rV<mV):
             pos = pos + 1
-        print "going to pos ", pos, "v: ",M[i][pos]
+        #print "going to pos ", pos, "v: ",M[i][pos]
         path += [pos]
     
     print "I got a path",len(path)
@@ -199,25 +185,57 @@ def compute_ordering(image, target_size):
         raise ValueError("Target size must be smaller than the input size.")
     return [0,1] * min(r-1, c-1) + [0] * max(r-c, 0) + [1] * max(c-r, 0)
 
+def remove_vertical_seam(image, seam):
+    """
+    Removes the given seam from the image.
+    
+    image : an n x m array (may have multiple channels)
+    seam : an n x 1 array of X-coordinates defining the seam pixels in top-down order.
+    
+    Thus, seam[0] means remove pixel (0, seam[0]) from the input image.
+    
+    returns: an n x (m - 1) image with the seam removed.
+    """
+    seam = np.array(seam,dtype='int')
+    print 'image size',image.shape,'seam size',seam.shape
+    m,n,derp = image.shape
+    mask = np.ones((m,n),dtype='bool')
+    mask[range(m),seam] = False
+    image = image[mask].reshape(m,n-1,derp) 
+    #image = np.delete(image,seam,0)
+    print 'image size after deletion',image.shape
+
+    #for i in range(0,len(seam)):
+    #    print 'seam[',i,']:',seam[i]
+    #for i in range(0,len(seam)):
+    #    print 'for i',i,' deleteing at ',seam[i]
+    #    image = np.delete(image[i],seam[i],0)
+    return image
+    
 def resize(image, target_size):
     output = image.copy()
     order = compute_ordering(output, target_size)
 
     for i, seam_type in enumerate(order):
-        #print "Removing seam {} / {} ".format(i, len(order))
+        print "Removing seam {} / {} ".format(i, len(order))
 
         # TODO: check if order = 0, if so, transpose the image!
-        
+        if(seam_type==0):
+            output = np.transpose(output,(1,0,2))       
+            print 'transposing before ',image.shape,' after',output.shape 
+
         # TODO: compute the energy using gradient_magnitude
-        energy = gradient_magnitude(image)
+        energy = gradient_magnitude(output)
         
         # TODO: Compute M using compute_seam_costs
         M = compute_seam_costs(energy)
         # TODO: get the minimal seam using 'minimal_seam'
         seam = minimal_seam(M)
         # TODO: remove it using 'remove_vertical_seam'
-        
+        output = remove_vertical_seam(output,seam)
         # TODO: check if order = 0, if so, transpose the image back!
+        if(seam_type==0):
+            output = np.transpose(output,(1,0,2))
 
     # Sanity check.....
     assert(output.shape[0] == target_size[0] and
