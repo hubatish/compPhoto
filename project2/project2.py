@@ -211,10 +211,14 @@ def remove_vertical_seam(image, seam):
     """
     seam = np.array(seam,dtype='int')
     print 'image size',image.shape,'seam size',seam.shape
-    m,n,derp = image.shape
+    mnshape = image.shape
+    m = mnshape[0]
+    n = mnshape[1]
     mask = np.ones((m,n),dtype='bool')
     mask[range(m),seam] = False
-    image = image[mask].reshape(m,n-1,derp) 
+    mnshape = list(mnshape)
+    mnshape[1] -= 1
+    image = image[mask].reshape(mnshape) 
     #print 'image size after deletion',image.shape
 
     #for i in range(0,len(seam)):
@@ -239,7 +243,7 @@ def resize(image, target_size):
 
         energy = gradient_magnitude(output)
         
-        M[seam_type] = compute_seam_costs(energy,M[seam_type])
+        M[seam_type] = compute_seam_costs(energy,M[seam_type],seam[seam_type])
         seam[seam_type] = minimal_seam(M[seam_type])
         output = remove_vertical_seam(output,seam[seam_type])
 
