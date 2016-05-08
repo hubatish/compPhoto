@@ -175,7 +175,7 @@ def minimal_seam(M):
     #select rightmost row
     #find starting position 
     lastRow = M[:,-1]
-    print 'size M', M.shape, 'w of M? ',len(M),'size c' , lastRow.shape
+    print 'finding min seam for M (of size)', M.shape
     cost = 0.0
     mini = float('inf')
     pos = 0
@@ -266,18 +266,17 @@ def resize(image, target_size):
             output = np.transpose(output,(1,0,2))       
 
         seamsPerCalc = 4
+        pSeam = seams[seam_type][-1] #last added seam
         if(len(seams[seam_type])>=seamsPerCalc):
-            M[seam_type],seams[seam_type] = recalculate_for_seams(M,seams[seam_type])
+            M[seam_type],seams[seam_type] = recompute_for_seams(M[seam_type],seams[seam_type])
         
-<<<<<<< HEAD
         energy = gradient_magnitude(output)
-        M[seam_type] = compute_seam_costs(energy,M[seam_type],seams[seam_type])
+        M[seam_type] = compute_seam_costs(energy,M[seam_type],pSeam)
             
-=======
-        M[seam_type] = compute_seam_costs(energy,M[seam_type],seam[seam_type])
->>>>>>> 3e33b49c4fc5675edbb9d978b8afbe6bcb69c583
-        seam[seam_type] = minimal_seam(M[seam_type])
-        output = remove_vertical_seam(output,seam[seam_type])
+        rSeam = minimal_seam(M[seam_type])
+        output = remove_vertical_seam(output,rSeam)
+        seams[seam_type] += [rSeam]
+        
 
         if(seam_type==0):
             output = np.transpose(output,(1,0,2))
