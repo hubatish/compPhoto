@@ -124,13 +124,14 @@ def compute_seam_costs(energy):
     M = np.zeros(energy.shape) +bogusValue
      
     # TODO: Iterate over the rows, starting at row 1
-    for i in range(1,n-1):
-        
+    for j in range(0,len(energy[0])):
+        e = get_min_energy_path(energy,M,len(energy)-1,j)
+        #print 'got energy for j ',j,":",e
         # TODO: Iterate over the column 1 to m - 1
-        for j in range(1, m - 1):
+        #for j in range(1, m - 1):
             # TODO: Compute M(i, j) = e(i, j) + min( M(i-1, j-1), M(i-1, j), M(i-1, j+1)
             # Be sure to handle edge cases where j = 0 and j = m - 1
-            pass
+         #   pass
     # return the result!
     return M
 
@@ -147,11 +148,43 @@ def minimal_seam(M):
     """
     path = []
 
-    # TODO: Compute the bottom-up path of pixel X-coordinates for the seam with
     # minimal cost.
+    #select rightmost row
+    #find starting position 
+    lastRow = M[:,-1]
+    print 'size M', M.shape, 'w of M? ',len(M),'size c' , lastRow.shape
+    cost = 0.0
+    mini = float('inf')
+    pos = 0
+    for c in range(0,len(lastRow)):
+        if lastRow[c]<mini:
+            mini = lastRow[c]
+            pos = c
+            path += [pos]
+    
+    for i in range(len(M)-2,-1,-1):
+        lV = float('inf')
+        if(pos-1>=0):
+            lV = M[i][pos-1]
+        rV = float('inf')
+        if(pos+1<len(M)):
+            rV = M[i][pos+1]
+        mV = M[i][pos]
+        if(lV<rV):
+            if(lV<mV):
+                pos = pos-1
+        elif(rV<mV):
+            pos = pos + 1
+        print "going to pos ", pos, "v: ",M[i][pos]
+        path += [pos]
+    
+    print "I got a path",len(path)
+    
+    # TODO: Compute the bottom-up path of pixel X-coordinates for the seam with
+
     # Return the top-down seam X-coordinates and the total energy cost of
     # removing that seam.
-    return np.asarray(path)[::-1], cost
+    return np.asarray(path)[::-1]
 
 def compute_ordering(image, target_size):
     """
@@ -179,11 +212,11 @@ def resize(image, target_size):
         energy = gradient_magnitude(image)
         
         # TODO: Compute M using compute_seam_costs
-        
+        M = compute_seam_costs(energy)
         # TODO: get the minimal seam using 'minimal_seam'
-        
+        seam = minimal_seam(M)
         # TODO: remove it using 'remove_vertical_seam'
-
+        
         # TODO: check if order = 0, if so, transpose the image back!
 
     # Sanity check.....
@@ -203,6 +236,6 @@ if __name__ == "__main__":
         exit(1)
 
     image = cv2.imread(in_fn)
-    resized = normalize2D(gradient_magnitude(image))*255.0
-    #resized = resize(image, (h,w))
+    #resized = normalize2D(gradient_magnitude(image))*255.0
+    resized = resize(image, (h,w))
     cv2.imwrite(out_fn, resized)
