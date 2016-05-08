@@ -105,6 +105,22 @@ def get_min_energy_path(energy,M,i,j):
     M[i][j] = energy[i][j]+minL
     return M[i][j]
 
+def recompute_for_seams(M,seams):
+    """
+    Edit M by filling in bogus values that should be recomputed
+    """
+    for rSeam in seams:
+        if(rSeam!=None):
+            #dont recalculate entire M, just the part affected by removed seam
+            #recalculate by putting bougs value back in for triangle
+            startPos = rSeam[0]
+            for i in range(0,len(M)):
+                for j in range(startPos-i,startPos+i):
+                    if(j>=0 and j<len(M[0])):
+                        M[i][j] = bogusValue
+    
+    return M , [None]
+
 def compute_seam_costs(energy,M=None,rSeam=None):
     """
     Computes the cumulative minimum energy of every possible seam in the provided energy image.
@@ -112,7 +128,8 @@ def compute_seam_costs(energy,M=None,rSeam=None):
          M(i, j) = e(i, j) + min( M(i-1, j-1), M(i-1, j), M(i-1, j+1) 
     
     energy : an n x m single channel image defining the energy at each pixel.
-    M, rSeam : both values that were cached from previous runs. M, previous M matrix, rSeam, the seam removed from that matrix
+    M, rSeam : both values that were cached from previous runs. M, previous M matrix, rSeam, the seam removed from that matrix. 
+    lazyCalc - if == true, will not actual recalc positions in M
     returns : an n x m image containing the cumulative minimum energy cost of all seams through each pixel.
     """
     # Create M, an n x m matrix with the first row equal to energy.
@@ -121,15 +138,18 @@ def compute_seam_costs(energy,M=None,rSeam=None):
     if(rSeam!=None):
         #dont recalculate entire M, just the part affected by removed seam
         #recalculate by putting bougs value back in for triangle
+        """
+        startPos = rSeam[0]
         for i in range(0,len(energy)):
-            for j in range(rSeam[i]-i,rSeam[i]+i):
+            for j in range(startPos-i,startPos+i):
                 if(j>=0 and j<len(energy[0])):
                     M[i][j] = bogusValue
+        """
         #then actually remove the seam value
         M = remove_vertical_seam(M,rSeam)
      
-    for j in range(0,len(energy[0])):
-        e = get_min_energy_path(energy,M,len(energy)-1,j)
+    for j in range(0,len(M[0])):
+        e = get_min_energy_path(energy,M,len(M)-1,j)
         #print 'got energy for j ',j,":",e
             # Be sure to handle edge cases where j = 0 and j = m - 1
     # return the result!
@@ -167,7 +187,7 @@ def minimal_seam(M):
         if(pos-1>=0):
             lV = M[i][pos-1]
         rV = float('inf')
-        if(pos+1<len(M)):
+        if( pos+1 <len(M[i])):
             rV = M[i][pos+1]
         mV = M[i][pos]
         if(lV<rV):
@@ -228,8 +248,9 @@ def resize(image, target_size):
     output = image.copy()
     order = compute_ordering(output, target_size)
 
+    #Caching M for speedups
     M = [None,None]
-    seam = [None,None]
+    seams = [[None],[None]]
 
     for i, seam_type in enumerate(order):
         print "Removing seam {} / {} ".format(i, len(order))
@@ -237,9 +258,13 @@ def resize(image, target_size):
         if(seam_type==0):
             output = np.transpose(output,(1,0,2))       
 
-        energy = gradient_magnitude(output)
+        seamsPerCalc = 4
+        if(len(seams[seam_type])>=seamsPerCalc):
+            M[seam_type],seams[seam_type] = recalculate_for_seams(M,seams[seam_type])
         
-        M[seam_type] = compute_seam_costs(energy,M[seam_type])
+        energy = gradient_magnitude(output)
+        M[seam_type] = compute_seam_costs(energy,M[seam_type],seams[seam_type])
+            
         seam[seam_type] = minimal_seam(M[seam_type])
         output = remove_vertical_seam(output,seam[seam_type])
 
