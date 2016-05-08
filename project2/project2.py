@@ -1,4 +1,10 @@
 #!/usr/bin/env python
+"""
+Skeleton by Kratz
+Filled in by Zach Howell, zgh23
+"""
+
+
 import sys
 import numpy as np
 import cv2
@@ -71,6 +77,8 @@ def gradient_magnitude(image):
     gradientY = np.absolute(gradientY)
     energy = gradientX + gradientY
     
+    print 'found energy ',energy.shape
+
     # and return the result
     return energy
 
@@ -97,27 +105,33 @@ def get_min_energy_path(energy,M,i,j):
     M[i][j] = energy[i][j]+minL
     return M[i][j]
 
-def compute_seam_costs(energy):
+def compute_seam_costs(energy,M=None,rSeam=None):
     """
     Computes the cumulative minimum energy of every possible seam in the provided energy image.
     You can do this using the dynamic programming rule:
          M(i, j) = e(i, j) + min( M(i-1, j-1), M(i-1, j), M(i-1, j+1) 
     
     energy : an n x m single channel image defining the energy at each pixel.
+    M, rSeam : both values that were cached from previous runs. M, previous M matrix, rSeam, the seam removed from that matrix
     returns : an n x m image containing the cumulative minimum energy cost of all seams through each pixel.
     """
-    # TODO: Create M, an n x m matrix with the first row equal to energy.
-    M = np.zeros(energy.shape) +bogusValue
+    # Create M, an n x m matrix with the first row equal to energy.
+    if(M==None):
+        M = np.zeros(energy.shape) +bogusValue
+    if(rSeam!=None):
+        #dont recalculate entire M, just the part affected by removed seam
+        #recalculate by putting bougs value back in for triangle
+        for i in range(0,len(energy)):
+            for j in range(rSeam[i]-i,rSeam[i]+i):
+                if(j>=0 and j<len(energy[0])):
+                    M[i][j] = bogusValue
+        #then actually remove the seam value
+        M = remove_vertical_seam(M,rSeam)
      
-    # TODO: Iterate over the rows, starting at row 1
     for j in range(0,len(energy[0])):
         e = get_min_energy_path(energy,M,len(energy)-1,j)
         #print 'got energy for j ',j,":",e
-        # TODO: Iterate over the column 1 to m - 1
-        #for j in range(1, m - 1):
-            # TODO: Compute M(i, j) = e(i, j) + min( M(i-1, j-1), M(i-1, j), M(i-1, j+1)
             # Be sure to handle edge cases where j = 0 and j = m - 1
-         #   pass
     # return the result!
     return M
 
@@ -164,10 +178,8 @@ def minimal_seam(M):
         #print "going to pos ", pos, "v: ",M[i][pos]
         path += [pos]
     
-    print "I got a path",len(path)
+    #print "I got a path",len(path)
     
-    # TODO: Compute the bottom-up path of pixel X-coordinates for the seam with
-
     # Return the top-down seam X-coordinates and the total energy cost of
     # removing that seam.
     return np.asarray(path)[::-1]
@@ -179,11 +191,12 @@ def compute_ordering(image, target_size):
     0 or 1 values corresponding to horizontal and vertical seams
     respectively.
     """
-    r = image.shape[0] - target_size[0] + 1
-    c = image.shape[1] - target_size[1] + 1
+    r = image.shape[0] - target_size[0]# + 1
+    c = image.shape[1] - target_size[1]# + 1
     if r < 0 or c < 0:
         raise ValueError("Target size must be smaller than the input size.")
-    return [0,1] * min(r-1, c-1) + [0] * max(r-c, 0) + [1] * max(c-r, 0)
+    #return [0,1] * min(r-1, c-1) + [0] * max(r-c, 0) + [1] * max(c-r, 0)
+    return [0]*r+[1]*c
 
 def remove_vertical_seam(image, seam):
     """
@@ -202,8 +215,7 @@ def remove_vertical_seam(image, seam):
     mask = np.ones((m,n),dtype='bool')
     mask[range(m),seam] = False
     image = image[mask].reshape(m,n-1,derp) 
-    #image = np.delete(image,seam,0)
-    print 'image size after deletion',image.shape
+    #print 'image size after deletion',image.shape
 
     #for i in range(0,len(seam)):
     #    print 'seam[',i,']:',seam[i]
@@ -216,24 +228,21 @@ def resize(image, target_size):
     output = image.copy()
     order = compute_ordering(output, target_size)
 
+    M = [None,None]
+    seam = [None,None]
+
     for i, seam_type in enumerate(order):
         print "Removing seam {} / {} ".format(i, len(order))
 
-        # TODO: check if order = 0, if so, transpose the image!
         if(seam_type==0):
             output = np.transpose(output,(1,0,2))       
-            print 'transposing before ',image.shape,' after',output.shape 
 
-        # TODO: compute the energy using gradient_magnitude
         energy = gradient_magnitude(output)
         
-        # TODO: Compute M using compute_seam_costs
-        M = compute_seam_costs(energy)
-        # TODO: get the minimal seam using 'minimal_seam'
-        seam = minimal_seam(M)
-        # TODO: remove it using 'remove_vertical_seam'
-        output = remove_vertical_seam(output,seam)
-        # TODO: check if order = 0, if so, transpose the image back!
+        M[seam_type] = compute_seam_costs(energy,M[seam_type])
+        seam[seam_type] = minimal_seam(M[seam_type])
+        output = remove_vertical_seam(output,seam[seam_type])
+
         if(seam_type==0):
             output = np.transpose(output,(1,0,2))
 
