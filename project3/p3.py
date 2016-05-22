@@ -57,7 +57,7 @@ def barycentric(tri,points):
     sys.exit()
    #"""
 	
-def bilinear_interp(image, point):
+def bilinear_interp(image, destPoints,points):
     """Perform bilinearly-interpolated color lookup in a given image at a given
     point."""
     # Compute the four integer corner coordinates for interpolation.
@@ -69,11 +69,17 @@ def bilinear_interp(image, point):
     # Interpolate between the bottom two pixels.
 
     # Return the result of the final interpolation between top and bottom.
+    points = np.round(points).astype(int)
+    destPoints = np.round(destPoints).astype(int)
+    #print "points",points
+    image[destPoints] = image[points]
+    #print "image shape",image.shape
+    return image
 
 def warp(source, source_tri, dest_triangulation):
     """Warp the source image so that its correspondences match the destination
     triangulation."""
-    result = np.zeros((5,5,3))#np.zeros_like(source)#
+    result = np.zeros_like(source)#np.zeros((5,5,3))#
 
     # Fill in the pixels of the result image.
 
@@ -89,7 +95,7 @@ def warp(source, source_tri, dest_triangulation):
     # * Look up numpy.mgrid / meshgrid for tips on how to quickly generate an
     #   array containing all of the points in an image of size [R,C].
     
-    print "source shape",source.shape
+    #print "source shape",source.shape
     #Find Points to find coordinates for
     Xs,Ys = np.meshgrid(xrange(0,len(result)),xrange(0,len(result[0])))
     points = np.c_[Xs.flatten(),Ys.flatten()]#np.asarray(zip(Xs.flatten(),Ys.flatten()))
@@ -97,21 +103,21 @@ def warp(source, source_tri, dest_triangulation):
     
     #Get barycentric coordinates
     bcoords = barycentric(dest_triangulation,points)
-    print "bcoords shape",bcoords
+    #print "bcoords shape",bcoords
 
     #Convert from barycentric back to source
     simplexIs = dest_triangulation.find_simplex(points) #indices of which triangles points lie in
     #print "simplexIs",simplexIs, "a simplex",source_tri.simplices[0]
     simplices = source_tri.points[source_tri.simplices[simplexIs]]
-    print "simplices sh",simplices
+    #print "simplices sh",simplices
     #go from [[1,2,3] multiply each index of tri with bary coors
     warpedPoints = simplices*bcoords[:,:,None]
     warpedPoints = warpedPoints.sum(axis=1)
-    print "warpedPoints",warpedPoints
+    #print "warpedPoints",warpedPoints
 
-    import sys
-    sys.exit()
-    #
+    warpedImage = bilinear_interp(source,points,warpedPoints)
+
+    return warpedImage
 
     for r in range(result.shape[0]):
         for c in range(result.shape[1]):
@@ -142,7 +148,7 @@ def morph(img1, img2, tri1, tri2, fraction):
 
     # Compute the intermediate points between the points of the first and
     # second triangulations according to the warp fraction.
-    intermediate_pts = (tri1.points + tri2.points) /2.0
+    intermediate_pts = tri1.points*(1.0-fraction) + tri2.points*fraction #tri2.points#
 
     # Compute the triangulation for the intermediate points.
     intermediate_tri = Delaunay(intermediate_pts)
@@ -157,7 +163,7 @@ def morph(img1, img2, tri1, tri2, fraction):
     # Blend the two warped images according to the warp fraction.
     result = []
 
-    return result
+    return warp1#result
 
 #########################################
 #####    Utility Code      ##############
@@ -182,14 +188,15 @@ def morph_sequence(start_img, end_img, corrs, n_frames):
     morph_frames = []
     for frame in range(1, n_frames-1):
         print("Computing intermediate frame %d..." % frame)
-        progress = 0.5#frame/(n_frames-1.)
+        progress = frame/(n_frames-1.)#0.5#
 
         intermediate_frame = morph(
                 start_img, end_img,
                 start_tri, end_tri,
                 progress)
-    
-        imsave("frames/%d.png" % frame, intermediate_frame)
+        #print "image shape",np.asarray(intermediate_frame).shape
+        #print "orig shape",np.asarray(start_img).shape
+        imsave("frames/%d.png" % frame, intermediate_frame)#start_img)#
         morph_frames.append( intermediate_frame)
 
     return [start_img] + morph_frames + [end_img]
