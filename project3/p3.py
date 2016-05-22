@@ -69,6 +69,46 @@ def bilinear_interp(image, destPoints,points):
     # Interpolate between the bottom two pixels.
 
     # Return the result of the final interpolation between top and bottom.
+    topRPoints = np.ceil(points).astype(int)
+    for i in xrange(0,len(points)):
+        #check for highest value
+        if(topRPoints[i][0]>=len(image)):
+            topRPoints[i][0]-=1
+        if(topRPoints[i][1]>=len(image)):
+            topRPoints[i][1]-=1
+    
+    topLPoints = topRPoints - [1,0]
+    bRPoints = topRPoints - [0,1]
+    bLPoints = topRPoints -[1,1]
+    offsets = points - bLPoints.astype(float)
+    reshapeGoal = (image.shape[0],image.shape[1],1)
+    xOffsets = (points[:,0]-bLPoints[:,0].astype(float)).reshape(reshapeGoal)
+    yOffsets = (points[:,1]-bLPoints[:,1].astype(float)).reshape(reshapeGoal)
+    
+    print "topRPoints",topRPoints.shape
+    print "offsets",offsets.shape
+    print "image",image.shape
+    print "xOffsets",xOffsets.shape
+    #offsets = offsets.reshape(image.shape)
+    
+    imageTL = imageTR = imageBL = imageBR = image#np.zeros_like(image.shape)    
+    imageTR = image#*offsets
+    imageTR *= xOffsets #* yOffsets
+    imageTL *= (1-xOffsets)*yOffsets#image*(([1.0,0]-offsets)*[1.0,-1.0])
+    imageBL *= (1-xOffsets)*(1-yOffsets)#image*([1.0,1.0]-offsets)
+    imageBR *= (1-yOffsets)*xOffsets#image*(([0.0,1.0]-offsets)*[-1.0,1.0])
+    
+    newImage = imageTR+imageTL+imageBL+imageBR
+    return newImage
+    
+    print "points", points
+    print "topRPoints",topRPoints
+    print "xoffsets",offsets
+    
+    import sys
+    sys.exit()
+
+    #Easy cheaty way
     points = np.round(points).astype(int)
     destPoints = np.round(destPoints).astype(int)
     #print "points",points
@@ -186,7 +226,7 @@ def morph_sequence(start_img, end_img, corrs, n_frames):
     #plot_triangles(start_tri)
 
     morph_frames = []
-    for frame in range(1, n_frames-1):
+    for frame in range(3, n_frames-1):#range(1, n_frames-1):
         print("Computing intermediate frame %d..." % frame)
         progress = frame/(n_frames-1.)#0.5#
 
