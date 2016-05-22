@@ -40,11 +40,11 @@ def barycentric(tri,points):
     X = tri.transform[simplex,:2]
     Y = points - tri.transform[simplex,2]
     #could theoretically run this faster with einsum        #b = np.einsum('ijk,ik->ij',X,Y)
-    b = np.array([x.dot(y) for x, y in zip(X, Y)])
+    b = np.array([x.dot(y) for x, y in zip(X, Y)]) #nowork#b = X.dot(Y[,:])
     #b = tri.transform[tetrahedra,:2].dot(tri.points - tri.transform[tetrahedra,2])
     bcoords = np.c_[b,1-b.sum(axis=1)]
     return bcoords
-    """#Debuggin goodness
+    #Debuggin goodness
     print "simplex",simplex.shape
     #print "transform",tri.transform
     print "transfrom shape",tri.transform.shape
@@ -52,7 +52,7 @@ def barycentric(tri,points):
     print "X",X.shape
     print "Y",Y.shape
     print b
-    #print "got bcoords!", bcoords.shape
+    print "got bcoords!", bcoords, "shape", bcoords.shape
     import sys
     sys.exit()
    #"""
@@ -69,6 +69,41 @@ def bilinear_interp(image, destPoints,points):
     # Interpolate between the bottom two pixels.
 
     # Return the result of the final interpolation between top and bottom.
+
+    newImage = np.zeros_like(image)
+    
+    for p in xrange(0,len(points)):
+        pX = points[p,0]
+        rX = np.round(pX).astype(int)
+        uX = np.ceil(pX).astype(int)
+        lX = uX-1
+        offX = pX - lX
+        
+        pY = points[p,1]
+        rY = np.round(pY).astype(int)
+        uY = np.ceil(pY).astype(int)
+        lY = uY-1
+        offY = pY - lY
+        
+        #print "source ps[",pX,",",pY,"] destPs [",destPoints[p,0],",",destPoints[p,1],"]"
+        
+        if(uX>=len(image)):
+            uX = len(image)-1
+        if(uY>=len(image[0])):
+            uY = len(image[0])-1
+        
+        newImage[destPoints[p,0],destPoints[p,1]] = (
+                          image[uX,uY]*offX*offY + 
+                          image[uX,lY]*offX*(1.0-offY) + 
+                          image[lX,uY]*(1.0-offX)*offY + 
+                          image[lX,lY]*(1.0-offX)*(1.0-offY))
+    return newImage
+
+    import sys
+    sys.exit()
+
+
+    #cool low for loop way
     topRPoints = np.ceil(points).astype(int)
     for i in xrange(0,len(points)):
         #check for highest value
@@ -99,7 +134,7 @@ def bilinear_interp(image, destPoints,points):
     imageBR *= (1-yOffsets)*xOffsets#image*(([0.0,1.0]-offsets)*[-1.0,1.0])
     
     newImage = imageTR+imageTL+imageBL+imageBR
-    return newImage
+    return imageTL#newImage
     
     print "points", points
     print "topRPoints",topRPoints
@@ -108,7 +143,7 @@ def bilinear_interp(image, destPoints,points):
     import sys
     sys.exit()
 
-    #Easy cheaty way
+    #Easy cheaty way, er... do nothing
     points = np.round(points).astype(int)
     destPoints = np.round(destPoints).astype(int)
     #print "points",points
@@ -116,10 +151,25 @@ def bilinear_interp(image, destPoints,points):
     #print "image shape",image.shape
     return image
 
+def tocartesian(baryPoints,origPoints,sourceTri,destTri):
+    #Convert from barycentric back to source
+    simplexIs = destTri.find_simplex(origPoints) #indices of which triangles points lie in
+    #print "simplexIs",simplexIs, "a simplex",source_tri.simplices[0]
+    #This may not necessarily line up!#simplices = sourceTri.points[sourceTri.simplices[simplexIs]]
+    simplices = sourceTri.points[destTri.simplices[simplexIs]]
+    
+    #print "simplices sh",simplices
+    #go from [[1,2,3] multiply each index of tri with bary coors
+    warpedPoints = simplices*baryPoints[:,:,None]
+    #print "warpedPoints after multiplying shape ",warpedPoints.shape," points:\n",warpedPoints
+    warpedPoints = warpedPoints.sum(axis=1)
+    #print "warpedPoints after summing, shape ",warpedPoints.shape, " points:\n",warpedPoints
+    return warpedPoints    
+
 def warp(source, source_tri, dest_triangulation):
     """Warp the source image so that its correspondences match the destination
     triangulation."""
-    result = np.zeros_like(source)#np.zeros((5,5,3))#
+    result = np.zeros_like(source)#np.zeros((3,3,3))#
 
     # Fill in the pixels of the result image.
 
@@ -145,15 +195,7 @@ def warp(source, source_tri, dest_triangulation):
     bcoords = barycentric(dest_triangulation,points)
     #print "bcoords shape",bcoords
 
-    #Convert from barycentric back to source
-    simplexIs = dest_triangulation.find_simplex(points) #indices of which triangles points lie in
-    #print "simplexIs",simplexIs, "a simplex",source_tri.simplices[0]
-    simplices = source_tri.points[source_tri.simplices[simplexIs]]
-    #print "simplices sh",simplices
-    #go from [[1,2,3] multiply each index of tri with bary coors
-    warpedPoints = simplices*bcoords[:,:,None]
-    warpedPoints = warpedPoints.sum(axis=1)
-    #print "warpedPoints",warpedPoints
+    warpedPoints = tocartesian(bcoords,points,source_tri,dest_triangulation)
 
     warpedImage = bilinear_interp(source,points,warpedPoints)
 
@@ -198,12 +240,12 @@ def morph(img1, img2, tri1, tri2, fraction):
     warp1 = warp(img1,tri1,intermediate_tri)
 
     # Warp the second image to the intermediate triangulation.
-    #warp2 =
+    warp2 = warp(img2,tri2,intermediate_tri)
 
     # Blend the two warped images according to the warp fraction.
-    result = []
+    result = warp1*(1.0-fraction)+warp2*fraction
 
-    return warp1#result
+    return result#warp2#
 
 #########################################
 #####    Utility Code      ##############
@@ -226,7 +268,7 @@ def morph_sequence(start_img, end_img, corrs, n_frames):
     #plot_triangles(start_tri)
 
     morph_frames = []
-    for frame in range(3, n_frames-1):#range(1, n_frames-1):
+    for frame in range(1, n_frames-1):#range(1, n_frames-1):
         print("Computing intermediate frame %d..." % frame)
         progress = frame/(n_frames-1.)#0.5#
 
