@@ -33,36 +33,29 @@ def blend(img1, img2, fraction):
 def barycentric(tri,points):
     """Compute the barycentric coordinates for a query point within the given
     triangle points."""
-
-    # Form the matrix A containing the triangle points and 1s in the proper
-    # positions.
-
-    # Create the vector b containing the query coordinates as well as a 1.
-
-    # Solve the linear system Ax = b for the barycentric coordinates x.
-    # HINT: Look at numpy.linalg.solve.
 	
     #From: http://codereview.stackexchange.com/questions/41024/faster-computation-of-barycentric-coordinates-for-many-points
     
-    tetrahedra = tri.find_simplex(points)
-    X = tri.transform[tetrahedra,:2]
-    Y = tri.points - tri.transform[tetrahedra,2]
+    simplex = tri.find_simplex(points)
+    X = tri.transform[simplex,:2]
+    Y = points - tri.transform[simplex,2]
     #could theoretically run this faster with einsum        #b = np.einsum('ijk,ik->ij',X,Y)
     b = np.array([x.dot(y) for x, y in zip(X, Y)])
     #b = tri.transform[tetrahedra,:2].dot(tri.points - tri.transform[tetrahedra,2])
     bcoords = np.c_[b,1-b.sum(axis=1)]
     return bcoords
     """#Debuggin goodness
-    print "tetrahedra",tetrahedra.shape
+    print "simplex",simplex.shape
     #print "transform",tri.transform
     print "transfrom shape",tri.transform.shape
     print "points",points.shape
     print "X",X.shape
     print "Y",Y.shape
-    print "got bcoords!", bcoords.shape
+    print b
+    #print "got bcoords!", bcoords.shape
     import sys
     sys.exit()
-    """
+   #"""
 	
 def bilinear_interp(image, point):
     """Perform bilinearly-interpolated color lookup in a given image at a given
@@ -80,7 +73,7 @@ def bilinear_interp(image, point):
 def warp(source, source_tri, dest_triangulation):
     """Warp the source image so that its correspondences match the destination
     triangulation."""
-    result = np.zeros_like(source)
+    result = np.zeros((5,5,3))#np.zeros_like(source)#
 
     # Fill in the pixels of the result image.
 
@@ -95,14 +88,30 @@ def warp(source, source_tri, dest_triangulation):
     #   these functions via array operations.
     # * Look up numpy.mgrid / meshgrid for tips on how to quickly generate an
     #   array containing all of the points in an image of size [R,C].
-
-    #tetrahedra = source_tri.find_simplex(source_tri.points)
-    #X = source_tri.transform[tetrahedra,:3]
-    #Y = source_tri.points - source_tri.transform[tetrahedra,3]
-    #b = np.einsum('ijk,ik->ij',X,Y)
-    #bcoords = np.c_[b,1-b.sum(axis=1)]
     
-    bcoords = barycentric(source_tri,source_tri.points)
+    print "source shape",source.shape
+    #Find Points to find coordinates for
+    Xs,Ys = np.meshgrid(xrange(0,len(result)),xrange(0,len(result[0])))
+    points = np.c_[Xs.flatten(),Ys.flatten()]#np.asarray(zip(Xs.flatten(),Ys.flatten()))
+    #print "points",points.shape
+    
+    #Get barycentric coordinates
+    bcoords = barycentric(dest_triangulation,points)
+    print "bcoords shape",bcoords
+
+    #Convert from barycentric back to source
+    simplexIs = dest_triangulation.find_simplex(points) #indices of which triangles points lie in
+    #print "simplexIs",simplexIs, "a simplex",source_tri.simplices[0]
+    simplices = source_tri.points[source_tri.simplices[simplexIs]]
+    print "simplices sh",simplices
+    #go from [[1,2,3] multiply each index of tri with bary coors
+    warpedPoints = simplices*bcoords[:,:,None]
+    warpedPoints = warpedPoints.sum(axis=1)
+    print "warpedPoints",warpedPoints
+
+    import sys
+    sys.exit()
+    #
 
     for r in range(result.shape[0]):
         for c in range(result.shape[1]):
