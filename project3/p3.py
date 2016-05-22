@@ -7,6 +7,7 @@ import argparse
 import numpy as np
 from scipy.misc import imread, imsave
 from scipy.spatial import Delaunay
+import matplotlib.pyplot as plt
 
 #########################################
 ###########    Skeleton    ##############
@@ -22,11 +23,13 @@ def intermediate_points(pts1, pts2, fraction):
     point sets."""
 
     # Compute and return the intermediate point set.
+	
 
 def blend(img1, img2, fraction):
     """Blend between img1 and img2 based on the given fraction."""
     # Compute and return the blended image.
-
+	
+	
 def barycentric(points, query):
     """Compute the barycentric coordinates for a query point within the given
     triangle points."""
@@ -38,7 +41,8 @@ def barycentric(points, query):
 
     # Solve the linear system Ax = b for the barycentric coordinates x.
     # HINT: Look at numpy.linalg.solve.
-
+	
+	
 def bilinear_interp(image, point):
     """Perform bilinearly-interpolated color lookup in a given image at a given
     point."""
@@ -89,28 +93,31 @@ def warp(source, source_points, dest_triangulation):
 
             # Get the resulting color from the source image via bilinear
             # interpolation, and place it in the result image.
-            result[r, c] = 
+            #result[r, c] = 
+            pass
+            
     return result
 
-def morph(img1, img2, pts1, pts2, fraction):
+def morph(img1, img2, tri1, tri2, fraction):
     """Computes the intermediate morph of the given fraciton between img1
     and img2 using their correspondences."""
 
     # Compute the intermediate points between the points of the first and
     # second triangulations according to the warp fraction.
-    intermediate_pts = 
+    intermediate_pts = (tri1.points + tri2.points) /2.0
 
     # Compute the triangulation for the intermediate points.
-    intermediate_triang =
+    intermediate_triang = Delaunay(intermediate_pts)
+    #plot_triangles(intermediate_triang)
 
     # Warp the first image to the intermediate triangulation.
-    warp1 =
+    #warp1 =
 
     # Warp the second image to the intermediate triangulation.
-    warp2 =
+    #warp2 =
 
     # Blend the two warped images according to the warp fraction.
-    result =
+    result = []
 
     return result
 
@@ -118,20 +125,30 @@ def morph(img1, img2, pts1, pts2, fraction):
 #####    Utility Code      ##############
 #########################################
 
+def plot_triangles(tri):
+    """Sample code from http://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.spatial.Delaunay.html"""
+    plt.triplot(tri.points[:,0], tri.points[:,1], tri.simplices.copy())
+    plt.plot(tri.points[:,0], tri.points[:,1], 'o')
+    plt.show()    
+
 def morph_sequence(start_img, end_img, corrs, n_frames):
     """Computes the n_frames long sequence of intermediate images for the warp
     between start_img and end_img, using the given correspondences in corrs."""
 
     start_pts, end_pts = corrs
 
+    start_tri = Delaunay(start_pts)
+    end_tri = Delaunay(end_pts)
+    #plot_triangles(start_tri)
+
     morph_frames = []
     for frame in range(1, n_frames-1):
         print("Computing intermediate frame %d..." % frame)
-        progress = frame/(n_frames-1.)
+        progress = 0.5#frame/(n_frames-1.)
 
         intermediate_frame = morph(
                 start_img, end_img,
-                start_pts, end_pts,
+                start_tri, end_tri,
                 progress)
     
         imsave("frames/%d.png" % frame, intermediate_frame)
@@ -209,6 +226,7 @@ if __name__ == "__main__":
     if not os.path.exists("frames"):
         os.mkdir("frames")
 
+    print "start morphing"
     morph_img_sequence = morph_sequence(start_img, end_img, corrs, args.n_frames)
 
     try:
