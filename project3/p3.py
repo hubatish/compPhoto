@@ -30,7 +30,7 @@ def blend(img1, img2, fraction):
     # Compute and return the blended image.
 	
 	
-def barycentric(points, query):
+def barycentric(tri,points):
     """Compute the barycentric coordinates for a query point within the given
     triangle points."""
 
@@ -42,6 +42,27 @@ def barycentric(points, query):
     # Solve the linear system Ax = b for the barycentric coordinates x.
     # HINT: Look at numpy.linalg.solve.
 	
+    #From: http://codereview.stackexchange.com/questions/41024/faster-computation-of-barycentric-coordinates-for-many-points
+    
+    tetrahedra = tri.find_simplex(points)
+    X = tri.transform[tetrahedra,:2]
+    Y = tri.points - tri.transform[tetrahedra,2]
+    #could theoretically run this faster with einsum        #b = np.einsum('ijk,ik->ij',X,Y)
+    b = np.array([x.dot(y) for x, y in zip(X, Y)])
+    #b = tri.transform[tetrahedra,:2].dot(tri.points - tri.transform[tetrahedra,2])
+    bcoords = np.c_[b,1-b.sum(axis=1)]
+    return bcoords
+    """#Debuggin goodness
+    print "tetrahedra",tetrahedra.shape
+    #print "transform",tri.transform
+    print "transfrom shape",tri.transform.shape
+    print "points",points.shape
+    print "X",X.shape
+    print "Y",Y.shape
+    print "got bcoords!", bcoords.shape
+    import sys
+    sys.exit()
+    """
 	
 def bilinear_interp(image, point):
     """Perform bilinearly-interpolated color lookup in a given image at a given
@@ -56,7 +77,7 @@ def bilinear_interp(image, point):
 
     # Return the result of the final interpolation between top and bottom.
 
-def warp(source, source_points, dest_triangulation):
+def warp(source, source_tri, dest_triangulation):
     """Warp the source image so that its correspondences match the destination
     triangulation."""
     result = np.zeros_like(source)
@@ -74,6 +95,14 @@ def warp(source, source_points, dest_triangulation):
     #   these functions via array operations.
     # * Look up numpy.mgrid / meshgrid for tips on how to quickly generate an
     #   array containing all of the points in an image of size [R,C].
+
+    #tetrahedra = source_tri.find_simplex(source_tri.points)
+    #X = source_tri.transform[tetrahedra,:3]
+    #Y = source_tri.points - source_tri.transform[tetrahedra,3]
+    #b = np.einsum('ijk,ik->ij',X,Y)
+    #bcoords = np.c_[b,1-b.sum(axis=1)]
+    
+    bcoords = barycentric(source_tri,source_tri.points)
 
     for r in range(result.shape[0]):
         for c in range(result.shape[1]):
@@ -107,11 +136,11 @@ def morph(img1, img2, tri1, tri2, fraction):
     intermediate_pts = (tri1.points + tri2.points) /2.0
 
     # Compute the triangulation for the intermediate points.
-    intermediate_triang = Delaunay(intermediate_pts)
+    intermediate_tri = Delaunay(intermediate_pts)
     #plot_triangles(intermediate_triang)
 
     # Warp the first image to the intermediate triangulation.
-    #warp1 =
+    warp1 = warp(img1,tri1,intermediate_tri)
 
     # Warp the second image to the intermediate triangulation.
     #warp2 =
