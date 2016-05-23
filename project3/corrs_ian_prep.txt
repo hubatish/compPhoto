@@ -1,0 +1,38 @@
+left head:
+242 185 182 239
+tl head:
+295 78 185 116
+top head:
+392 9 283 42
+tr head:
+455 108 372 112
+mid r head:
+427 256 400 240
+r eye t:
+427 200 350 157
+top nose:
+364 211 285 189
+l eye t:
+314 167 226 164
+l nose:
+309 272 250 272
+mid nose:
+337 289 288 288
+r nose:
+364 280 331 274
+chin:
+303 381 296 421
+r mouth:
+377 310 359 301
+mid moth:
+320 334 288 336
+l mouth:
+285 285 226 307
+l neck:
+240 322 220 395
+way left sholder:
+10 462 58 492
+r neck:
+409 318 383 380
+right shoulder:
+496 395 496 419

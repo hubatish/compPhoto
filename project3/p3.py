@@ -11,24 +11,7 @@ import matplotlib.pyplot as plt
 
 #########################################
 ###########    Skeleton    ##############
-#########################################
-
-def intermediate_points(pts1, pts2, fraction):
-    """Computes the intermediate point set for a given set of correspondence
-    points.  fraction represents the relative weight on start vs end frames, a
-    number in the interval [0,1]. 0 means only use the first points, 1 means
-    only use the second points.
-
-    The intermediate point set is a linear interpolation of the start and end
-    point sets."""
-
-    # Compute and return the intermediate point set.
-	
-
-def blend(img1, img2, fraction):
-    """Blend between img1 and img2 based on the given fraction."""
-    # Compute and return the blended image.
-	
+#########################################	
 	
 def barycentric(tri,points):
     """Compute the barycentric coordinates for a query point within the given
@@ -44,7 +27,8 @@ def barycentric(tri,points):
     #b = tri.transform[tetrahedra,:2].dot(tri.points - tri.transform[tetrahedra,2])
     bcoords = np.c_[b,1-b.sum(axis=1)]
     return bcoords
-    #Debuggin goodness
+
+    """#Debuggin goodness
     print "simplex",simplex.shape
     #print "transform",tri.transform
     print "transfrom shape",tri.transform.shape
@@ -53,8 +37,6 @@ def barycentric(tri,points):
     print "Y",Y.shape
     print b
     print "got bcoords!", bcoords, "shape", bcoords.shape
-    import sys
-    sys.exit()
    #"""
 	
 def bilinear_interp(image, destPoints,points):
@@ -89,8 +71,10 @@ def bilinear_interp(image, destPoints,points):
         
         if(uX>=len(image)):
             uX = len(image)-1
+            lX = uX -1
         if(uY>=len(image[0])):
             uY = len(image[0])-1
+            lY = uY-1
         
         newImage[destPoints[p,0],destPoints[p,1]] = (
                           image[uX,uY]*offX*offY + 
@@ -98,10 +82,6 @@ def bilinear_interp(image, destPoints,points):
                           image[lX,uY]*(1.0-offX)*offY + 
                           image[lX,lY]*(1.0-offX)*(1.0-offY))
     return newImage
-
-    import sys
-    sys.exit()
-
 
     #cool low for loop way
     topRPoints = np.ceil(points).astype(int)
@@ -143,14 +123,6 @@ def bilinear_interp(image, destPoints,points):
     import sys
     sys.exit()
 
-    #Easy cheaty way, er... do nothing
-    points = np.round(points).astype(int)
-    destPoints = np.round(destPoints).astype(int)
-    #print "points",points
-    image[destPoints] = image[points]
-    #print "image shape",image.shape
-    return image
-
 def tocartesian(baryPoints,origPoints,sourceTri,destTri):
     #Convert from barycentric back to source
     simplexIs = destTri.find_simplex(origPoints) #indices of which triangles points lie in
@@ -175,15 +147,6 @@ def warp(source, source_tri, dest_triangulation):
 
     # NOTE: This can be done much more efficiently in Python using a series of
     # numpy array operations as opposed to a for loop.
-
-    # HINTS for fast version:
-    # * Delaunay.find_simplex can take a list / array of points and look
-    #   them up all at once.
-    # * You can modify your bilinear_interp() and barycentric() functions to
-    #   take arrays of points instead of single points. Express the actions in
-    #   these functions via array operations.
-    # * Look up numpy.mgrid / meshgrid for tips on how to quickly generate an
-    #   array containing all of the points in an image of size [R,C].
     
     #print "source shape",source.shape
     #Find Points to find coordinates for
@@ -200,29 +163,6 @@ def warp(source, source_tri, dest_triangulation):
     warpedImage = bilinear_interp(source,points,warpedPoints)
 
     return warpedImage
-
-    for r in range(result.shape[0]):
-        for c in range(result.shape[1]):
-            # Find the triangle index (look at Delaunay.find_simplex) for the
-            # current point in the destination triangulation, then use it to
-            # get the points of the destination triangle.
-
-            # Get the indices for the points of the destination triangle
-            # (Delaunay.simplices) and use them to get the corresponding points
-            # for the source triangle.
-
-            # Compute the barycentric coordinates for the current destination
-            # point using the destination triangle's points.
-
-            # Compute the sum of the source points weighted by the barycentric
-            # coordinates from the destination triangle.
-
-            # Get the resulting color from the source image via bilinear
-            # interpolation, and place it in the result image.
-            #result[r, c] = 
-            pass
-            
-    return result
 
 def morph(img1, img2, tri1, tri2, fraction):
     """Computes the intermediate morph of the given fraciton between img1
