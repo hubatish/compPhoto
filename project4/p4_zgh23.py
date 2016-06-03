@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """Tour into Picture.
 
 This program has two states.
@@ -497,7 +499,7 @@ def keyPressed(*args):
             selectpoints.activate()
         elif state == "navigate":
             navigate.activate(selectpoints.getCorner1(), selectpoints.getCorner2(), selectpoints.getVanishingPt())
-    elif args[0] == 'q'
+    elif args[0] == 'q':
         sys.exit(0)
 
     if state == "selectpoints":
