@@ -196,7 +196,8 @@ def homographywarp(source, homography, imwidth, imheight):
     #       instead, you can use fancy numpy indexing to do the homography
     #       warp very quickly. check out the methods numpy.meshgrid and
     #       numpy.take.
-    
+
+    #Copied from Kratz computer ~    
     for y in xrange(imheight):
         for x in xrange(imwidth):
             p = np.linalg.solve(homography,[x,y,1])
