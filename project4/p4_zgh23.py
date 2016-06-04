@@ -116,16 +116,16 @@ def computefaces(corner1, corner2, vanishingpt, imwidth, imheight, focallen):
 
     top3d = np.array([[getX(0, [backright, backtop], vanishingpt), 0.,d],
                       [getX(0, [backleft, backtop], vanishingpt), 0.,d],
-                      [backleft, backtop,0],
-                      [backright, backtop,0]])
+                      [0, 0,0],
+                      [imwidth,0,0]])
                        
-    left3d = np.array([[backleft, backtop,0],
+    left3d = np.array([[0, 0,0],
                        [0., getY(0, [backleft, backtop], vanishingpt),d],
                        [0., getY(0, [backleft, backbottom], vanishingpt),d],
-                       [backleft, backbottom],0])    
+                       [0, imheight,0]])    
 
-    bottom3d = np.array([[backright, backbottom,0],
-                         [backleft, backbottom,0],
+    bottom3d = np.array([[imwidth, imwidth,0],
+                         [0, imwidth,0],
                          [getX(imheight, [backleft, backbottom], vanishingpt), imheight,d],
                          [getX(imheight, [backright, backbottom], vanishingpt), imheight,d]])    
 
@@ -159,6 +159,27 @@ def computehomography(facefrom, faceto):
     # TO solve the homography, you'll need to use least squares.
     # Set the values in A such that Ax = b will solve the homography...    
 
+    #see page 81 of Week8
+    #[x1,y1,1,0 ,0 ,0,-x'*x,-x'*y,-x']
+    #[0 ,0 ,0,x1,y1,1,-y'*x,-y'*y,-y']
+    for row in xrange(0,len(A),2):
+        x = facefrom[row/2][0]
+        y = facefrom[row/2][1]
+        xp = faceto[row/2][0]
+        yp = faceto[row/2][1]
+        A[row,0] = x
+        A[row,1] = y
+        A[row,2] = 1
+        A[row,6] = -xp*x
+        A[row,7] = -xp*y
+        A[row,8] = -xp
+        A[row+1,3] = x
+        A[row+1,4] = y
+        A[row+1,5] = 1
+        A[row+1,6] = -yp*x
+        A[row+1,7] = -yp*y
+        A[row+1,8] = -yp
+
     return np.linalg.svd(np.dot(A.T, A))[2][-1, :].reshape((3, 3))
 
 
@@ -171,9 +192,6 @@ def homographywarp(source, homography, imwidth, imheight):
     imheight --- new image height"""
     newimage = np.zeros((imheight, imwidth, 3), dtype=np.uint8)
 
-    # ENTER CODE HERE
-    # ENTER CODE HERE
-    # ENTER CODE HERE
     # hint: you can loop over each pixel in the image, but that's slow.
     #       instead, you can use fancy numpy indexing to do the homography
     #       warp very quickly. check out the methods numpy.meshgrid and
@@ -183,8 +201,11 @@ def homographywarp(source, homography, imwidth, imheight):
         for x in xrange(imwidth):
             p = np.linalg.solve(homography,[x,y,1])
             p /= p[2]
-            #maybe make sure y,x in bounds
-            newimage[y,x] = source[int(p[1]),int(p[0])]
+            p = p.astype(int)
+            if(p[0]>=0 and p[0]<imwidth and
+               p[1]>=0 and p[1]<imheight):
+                #maybe make sure y,x in bounds
+                newimage[y,x] = source[p[1],p[0]]
 
     return newimage
 
