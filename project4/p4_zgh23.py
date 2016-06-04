@@ -58,24 +58,33 @@ def computefaces(corner1, corner2, vanishingpt, imwidth, imheight, focallen):
     bottom2d --- ndarray(shape=(4,2), dtype=float) plane defining the bottom of the box in 2d.
     """
 
-    backleft = min(corner1[0], corner2[0])
-    backright = max(corner1[0], corner2[0])
-    backbottom = max(corner1[1], corner2[1])
-    backtop = min(corner1[1], corner2[1])
+    bl = backleft = min(corner1[0], corner2[0])
+    br = backright = max(corner1[0], corner2[0])
+    bb = backbottom = max(corner1[1], corner2[1])
+    bt = backtop = min(corner1[1], corner2[1])
+    
+    vpx = vanishingpt[0]
+    vpy = vanishingpt[1]
+    cam_height = imheight - vpy #camera height, from bottom of image #0 is at top though
+    a = bb - vpy #height of camera from focal/image plane
+    d = focallen*cam_height/a - focallen #distance to actual image from sensor
 
     """Hint: A straightfoward implementation to get the 2D corners of each face would be
     like the following. Does this properly take care of the corners lying outside the 
     image domain? If not, how do you take care of them. The same applies to 
     the 3D coordinates, too.
+    """
     back2d = np.array([[backright, backtop],
                        [backleft, backtop],
                        [backleft, backbottom],
                        [backright, backbottom]])
 
-    right2d = np.array([[imwidth, getY(imwidth, [backright, backtop], vanishingpt)],
+    getYRT = getY(imwidth, [backright, backtop], vanishingpt)
+    getYRB = getY(imwidth, [backright, backbottom], vanishingpt)
+    right2d = np.array([[imwidth, getYRT],
                         [backright, backtop],
                         [backright, backbottom],
-                        [imwidth, getY(imwidth, [backright, backbottom], vanishingpt)]])
+                        [imwidth, getYRB]])
 
     top2d = np.array([[getX(0, [backright, backtop], vanishingpt), 0.],
                       [getX(0, [backleft, backtop], vanishingpt), 0.],
@@ -92,11 +101,33 @@ def computefaces(corner1, corner2, vanishingpt, imwidth, imheight, focallen):
                          [backleft, backbottom],
                          [getX(imheight, [backleft, backbottom], vanishingpt), imheight],
                          [getX(imheight, [backright, backbottom], vanishingpt), imheight]])
-    """
 
-    # ENTER CODE HERE
-    # ENTER CODE HERE
-    # ENTER CODE HERE
+    back3d = np.array([[imwidth,0,d],
+                      [0,0,d],
+                      [0,imheight,d],
+                      [imwidth,imheight,d]])
+    
+    #using straight corner for now but...
+    #TODO: Actually plot out that line & see if it doesn't quite match up... maybe????
+    right3d = np.array([[imwidth,getYRT,d],#maybe getY stuff
+                       [imwidth,0,0],
+                       [imwidth,imheight,0],
+                       [imwidth,getYRB,d]])
+
+    top3d = np.array([[getX(0, [backright, backtop], vanishingpt), 0.,d],
+                      [getX(0, [backleft, backtop], vanishingpt), 0.,d],
+                      [backleft, backtop,0],
+                      [backright, backtop,0]])
+                       
+    left3d = np.array([[backleft, backtop,0],
+                       [0., getY(0, [backleft, backtop], vanishingpt),d],
+                       [0., getY(0, [backleft, backbottom], vanishingpt),d],
+                       [backleft, backbottom],0])    
+
+    bottom3d = np.array([[backright, backbottom,0],
+                         [backleft, backbottom,0],
+                         [getX(imheight, [backleft, backbottom], vanishingpt), imheight,d],
+                         [getX(imheight, [backright, backbottom], vanishingpt), imheight,d]])    
 
     return back3d, right3d, top3d, left3d, bottom3d, back2d, right2d, top2d, left2d, bottom2d
 
@@ -123,12 +154,10 @@ def computehomography(facefrom, faceto):
     facefrom --- ndarray(shape=(4, 2), dtype=float)
     faceto --- ndarray(shape=(4, 2), dtype=float)"""
     A = np.zeros((8, 9))
+    #A = np.ndarray([[]])
     
     # TO solve the homography, you'll need to use least squares.
-    # Set the values in A such that Ax = b will solve the homography...
-    # ENTER CODE HERE
-    # ENTER CODE HERE
-    # ENTER CODE HERE
+    # Set the values in A such that Ax = b will solve the homography...    
 
     return np.linalg.svd(np.dot(A.T, A))[2][-1, :].reshape((3, 3))
 
@@ -149,6 +178,13 @@ def homographywarp(source, homography, imwidth, imheight):
     #       instead, you can use fancy numpy indexing to do the homography
     #       warp very quickly. check out the methods numpy.meshgrid and
     #       numpy.take.
+    
+    for y in xrange(imheight):
+        for x in xrange(imwidth):
+            p = np.linalg.solve(homography,[x,y,1])
+            p /= p[2]
+            #maybe make sure y,x in bounds
+            newimage[y,x] = source[int(p[1]),int(p[0])]
 
     return newimage
 
