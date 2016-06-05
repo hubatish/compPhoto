@@ -102,32 +102,32 @@ def computefaces(corner1, corner2, vanishingpt, imwidth, imheight, focallen):
                          [getX(imheight, [backleft, backbottom], vanishingpt), imheight],
                          [getX(imheight, [backright, backbottom], vanishingpt), imheight]])
 
-    back3d = np.array([[imwidth,0,d],
-                      [0,0,d],
-                      [0,imheight,d],
-                      [imwidth,imheight,d]])
-    
     #using straight corner for now but...
-    #TODO: Actually plot out that line & see if it doesn't quite match up... maybe????
-    right3d = np.array([[imwidth,getYRT,d],#maybe getY stuff
-                       [imwidth,0,0],
+    #TODO: Actually plot out that line & see if it doesn't quite match up... maybe????    
+    back3d = np.array([[imwidth,imheight,d],
+                      [0,imheight,d],
+                      [0,0,d],
+                      [imwidth,0,d]])
+
+    right3d = np.array([[imwidth,getYRB,d],#maybe getY stuff
                        [imwidth,imheight,0],
-                       [imwidth,getYRB,d]])
+                       [imwidth,0,0],
+                       [imwidth,getYRT,d]])
 
-    top3d = np.array([[getX(0, [backright, backtop], vanishingpt), 0.,d],
-                      [getX(0, [backleft, backtop], vanishingpt), 0.,d],
-                      [0, 0,0],
-                      [imwidth,0,0]])
+    top3d = np.array([[getX(0, [backright, backtop], vanishingpt), imheight,d],
+                      [getX(0, [backleft, backtop], vanishingpt), imheight,d],
+                      [0, imheight,0],
+                      [imwidth,imheight,0]])
                        
-    left3d = np.array([[0, 0,0],
-                       [0., getY(0, [backleft, backtop], vanishingpt),d],
+    left3d = np.array([[0, imheight,0],
                        [0., getY(0, [backleft, backbottom], vanishingpt),d],
-                       [0, imheight,0]])    
+                       [0., getY(0, [backleft, backtop], vanishingpt),d],
+                       [0, 0,0]])    
 
-    bottom3d = np.array([[imwidth, imwidth,0],
-                         [0, imwidth,0],
-                         [getX(imheight, [backleft, backbottom], vanishingpt), imheight,d],
-                         [getX(imheight, [backright, backbottom], vanishingpt), imheight,d]])    
+    bottom3d = np.array([[imwidth, 0,0],
+                         [0, 0,0],
+                         [getX(imheight, [backleft, backbottom], vanishingpt), 0,d],
+                         [getX(imheight, [backright, backbottom], vanishingpt), 0,d]])    
 
     return back3d, right3d, top3d, left3d, bottom3d, back2d, right2d, top2d, left2d, bottom2d
 
@@ -341,8 +341,8 @@ class Navigate():
         self.image = np.asarray(Image.open(imgpath))
 
         # viewing information
-        self.camera = np.array([200., 200., 1000.])
-        self.forward = np.array([0., 0., -1.])
+        self.camera = np.array([200., 200., 300.])
+        self.forward = np.array([0., -1.0, 1.]) #was facing away from painting, set to 1 to face it
 
         self.mousedown = [False, False]
         self.mousedownpt = [0, 0]
@@ -431,7 +431,7 @@ class Navigate():
             if np.linalg.norm(rotvec) > 1e-5:
                 diff = self.mousedownpt - [x, y]
                 self.forward = np.dot(rotation_matrix(rotvec, np.linalg.norm(diff) / 500.), self.forward)
-                self.forward[1] = np.clip(self.forward[1], -0.7, 0.7)
+                #self.forward[1] = np.clip(self.forward[1], -0.7, 0.7)
                 self.forward /= np.linalg.norm(self.forward)
             self.mousedownpt = np.array([x, y])
         elif self.mousedown[1]:
